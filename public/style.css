@@ -493,11 +493,23 @@ body.theme-light .auth-input { background: rgba(0,0,0,0.06); border-color: rgba(
         #111 30%, #1a1a1a 100%);
     box-shadow: 0 0 0 2px #333, 0 8px 40px rgba(0,0,0,0.8);
     animation: vinyl-spin 4s linear infinite;
-    animation-play-state: paused;
+    animation-play-state: paused !important;
+    -webkit-animation-play-state: paused !important;
     transform-origin: center;
+    will-change: transform;
 }
-.vinyl-disc.playing { animation-play-state: running; }
-@keyframes vinyl-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.vinyl-disc.playing {
+    animation-play-state: running !important;
+    -webkit-animation-play-state: running !important;
+}
+@keyframes vinyl-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+@-webkit-keyframes vinyl-spin {
+    from { -webkit-transform: rotate(0deg); }
+    to   { -webkit-transform: rotate(360deg); }
+}
 
 .vinyl-cover {
     position: absolute;

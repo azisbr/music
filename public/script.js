@@ -1050,20 +1050,24 @@ function updateVinylState(playing) {
         const disc = document.getElementById('vinylDisc');
         const needle = document.getElementById('vinylNeedle');
         if (!disc) {
-            if (tries > 0) setTimeout(() => attempt(tries - 1), 100);
+            if (tries > 0) setTimeout(() => attempt(tries - 1), 150);
             return;
         }
         if (playing) {
+            // Force remove dulu biar trigger reflow
+            disc.classList.remove('playing');
+            void disc.offsetWidth; // trigger reflow
             disc.classList.add('playing');
-            disc.style.animationPlayState = 'running';
+            disc.style.cssText += ';animation-play-state:running!important;-webkit-animation-play-state:running!important;';
             if (needle) { needle.classList.remove('off'); needle.classList.add('on'); }
         } else {
             disc.classList.remove('playing');
-            disc.style.animationPlayState = 'paused';
+            disc.style.cssText += ';animation-play-state:paused!important;-webkit-animation-play-state:paused!important;';
             if (needle) { needle.classList.remove('on'); needle.classList.add('off'); }
         }
     };
-    attempt(5);
+    // Coba langsung, retry kalau belum ready
+    attempt(8);
 }
 
 function updateVinylCover(imgSrc) {
