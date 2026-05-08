@@ -89,27 +89,68 @@ async def get_embeddable_tracks(query: str, need: int = 12) -> list:
         return raw[:need]
     return filtered[:need]
 
+async def yt_data_search(query: str, max_results: int = 20) -> list:
+    """Fallback search via YouTube Data API v3 dengan filter embeddable"""
+    try:
+        params = {
+            "part": "snippet",
+            "q": query,
+            "type": "video",
+            "videoCategoryId": "10",
+            "videoEmbeddable": "true",
+            "maxResults": max_results,
+            "key": YT_API_KEY,
+        }
+        async with httpx.AsyncClient(timeout=8) as client:
+            res = await client.get("https://www.googleapis.com/youtube/v3/search", params=params)
+            data = res.json()
+        results = []
+        for item in data.get("items", []):
+            vid_id = item.get("id", {}).get("videoId")
+            if not vid_id:
+                continue
+            snippet = item.get("snippet", {})
+            thumb = snippet.get("thumbnails", {})
+            img = (thumb.get("high") or thumb.get("medium") or thumb.get("default") or {}).get("url", "")
+            results.append({
+                "videoId": vid_id,
+                "title": snippet.get("title", "Unknown"),
+                "artist": snippet.get("channelTitle", "Unknown"),
+                "thumbnail": img
+            })
+        return results
+    except Exception as e:
+        print(f"yt_data_search error: {e}")
+        return []
+
 @app.get("/api/search")
 async def search_music(query: str):
     try:
-        # Ambil banyak dulu dari ytmusicapi
+        # Primary: ytmusicapi
         raw = search_ytmusic(query, limit=40)
+
+        # Kalau kurang dari 10, tambah dari YT Data API
+        if len(raw) < 10:
+            extra = await yt_data_search(query, max_results=20)
+            # Gabung, hindari duplikat
+            existing_ids = {t['videoId'] for t in raw}
+            for t in extra:
+                if t['videoId'] not in existing_ids:
+                    raw.append(t)
+                    existing_ids.add(t['videoId'])
+
         if not raw:
             return {"status": "error", "message": "Tidak ada hasil"}
 
-        # Batch check embeddable
+        # Batch check embeddable untuk semua
         video_ids = [t['videoId'] for t in raw]
         embed_status = await check_embeddable_batch(video_ids)
-
-        # Filter yang embeddable
         filtered = [t for t in raw if embed_status.get(t['videoId'], True)]
 
-        # Kalau hasil filter terlalu sedikit (<8), kembalikan semua aja
-        # daripada kosong
-        final = filtered if len(filtered) >= 8 else raw
+        # Kalau filtered masih sedikit, return semua aja
+        final = filtered if len(filtered) >= 5 else raw
         return {"status": "success", "data": final[:25]}
     except Exception as e:
-        # Fallback total — return tanpa filter
         try:
             raw = search_ytmusic(query, limit=25)
             return {"status": "success", "data": raw}
