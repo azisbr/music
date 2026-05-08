@@ -1,4 +1,0 @@
-fastapi
-ytmusicapi
-uvicorn
-httpx
