@@ -132,7 +132,6 @@ async def search_music(query: str):
         # Kalau kurang dari 10, tambah dari YT Data API
         if len(raw) < 10:
             extra = await yt_data_search(query, max_results=20)
-            # Gabung, hindari duplikat
             existing_ids = {t['videoId'] for t in raw}
             for t in extra:
                 if t['videoId'] not in existing_ids:
@@ -142,14 +141,9 @@ async def search_music(query: str):
         if not raw:
             return {"status": "error", "message": "Tidak ada hasil"}
 
-        # Batch check embeddable untuk semua
-        video_ids = [t['videoId'] for t in raw]
-        embed_status = await check_embeddable_batch(video_ids)
-        filtered = [t for t in raw if embed_status.get(t['videoId'], True)]
-
-        # Kalau filtered masih sedikit, return semua aja
-        final = filtered if len(filtered) >= 5 else raw
-        return {"status": "success", "data": final[:25]}
+        # Tampilkan semua tanpa filter embeddable
+        # Frontend yang handle skip kalau error 153
+        return {"status": "success", "data": raw[:25]}
     except Exception as e:
         try:
             raw = search_ytmusic(query, limit=25)

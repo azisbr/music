@@ -47,11 +47,26 @@ function onYouTubeIframeAPIReady() {
     ytPlayer = new YT.Player('youtube-player', {
         height: '1', width: '1',
         playerVars: { 'playsinline': 1, 'controls': 0, 'disablekb': 1 },
-        events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange }
+        events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange, 'onError': onPlayerError }
     });
 }
 
 function onPlayerReady() { setupSwipeGesture(); }
+
+function onPlayerError(event) {
+    // Error 100: video not found, 101/150: embedding not allowed, 5: HTML5 error
+    const code = event.data;
+    if (code === 100 || code === 101 || code === 150 || code === 5) {
+        showToast('❌ Tidak dapat diputar, skip ke lagu berikutnya...');
+        updateVinylState(false);
+        stopVisualizer();
+        isPlaying = false;
+        // Auto skip setelah 1.5 detik
+        setTimeout(() => {
+            handleSongEnd();
+        }, 1500);
+    }
+}
 
 function onPlayerStateChange(event) {
     const mainPlayBtn = document.getElementById('mainPlayBtn');
@@ -1031,16 +1046,24 @@ function updateVinylVisibility() {
 }
 
 function updateVinylState(playing) {
-    const disc = document.getElementById('vinylDisc');
-    const needle = document.getElementById('vinylNeedle');
-    if (!disc) return;
-    if (playing) {
-        disc.classList.add('playing');
-        if (needle) { needle.classList.remove('off'); needle.classList.add('on'); }
-    } else {
-        disc.classList.remove('playing');
-        if (needle) { needle.classList.remove('on'); needle.classList.add('off'); }
-    }
+    const attempt = (tries) => {
+        const disc = document.getElementById('vinylDisc');
+        const needle = document.getElementById('vinylNeedle');
+        if (!disc) {
+            if (tries > 0) setTimeout(() => attempt(tries - 1), 100);
+            return;
+        }
+        if (playing) {
+            disc.classList.add('playing');
+            disc.style.animationPlayState = 'running';
+            if (needle) { needle.classList.remove('off'); needle.classList.add('on'); }
+        } else {
+            disc.classList.remove('playing');
+            disc.style.animationPlayState = 'paused';
+            if (needle) { needle.classList.remove('on'); needle.classList.add('off'); }
+        }
+    };
+    attempt(5);
 }
 
 function updateVinylCover(imgSrc) {
@@ -1053,18 +1076,43 @@ function updateVinylCover(imgSrc) {
 // ============================================================
 let vizInterval = null;
 
+function detectBPM(title, artist) {
+    const text = ((title || '') + ' ' + (artist || '')).toLowerCase();
+    if (/dj|remix|dance|edm|house|techno|trap|tiktok|viral|jedag|jedug|dugem|party|club|beat|bass|hype|bounce/.test(text)) return 'fast';
+    if (/galau|sad|slow|ballad|acoustic|piano|love|cinta|rindu|sedih|sendu|hati|cover|lyric|relax/.test(text)) return 'slow';
+    return 'medium';
+}
+
 function startVisualizer() {
     if (!getSetting('visualizer')) return;
     const bars = document.querySelectorAll('.viz-bar');
     const container = document.getElementById('visualizerContainer');
     if (container) container.classList.add('playing');
     if (vizInterval) clearInterval(vizInterval);
+
+    const bpm = currentTrack ? detectBPM(currentTrack.title, currentTrack.artist) : 'medium';
+    const intervalMs = bpm === 'fast' ? 75 : bpm === 'slow' ? 200 : 130;
+    const maxH = bpm === 'fast' ? 40 : bpm === 'slow' ? 20 : 30;
+    const minH = bpm === 'fast' ? 8 : bpm === 'slow' ? 3 : 5;
+
+    // Sesuaikan kecepatan disc
+    const disc = document.getElementById('vinylDisc');
+    if (disc) {
+        const dur = bpm === 'fast' ? '2s' : bpm === 'slow' ? '7s' : '4s';
+        disc.style.animationDuration = dur;
+    }
+
     vizInterval = setInterval(() => {
-        bars.forEach(bar => {
-            const h = Math.floor(Math.random() * 35) + 4;
+        bars.forEach((bar, i) => {
+            // Pola gelombang natural — tengah lebih tinggi
+            const wave = Math.sin((i / Math.max(bars.length - 1, 1)) * Math.PI);
+            const rand = Math.random();
+            const h = Math.floor(minH + (maxH - minH) * (wave * 0.6 + rand * 0.4));
             bar.style.height = h + 'px';
+            if (bpm === 'fast') bar.style.opacity = 0.65 + rand * 0.35;
+            else bar.style.opacity = '1';
         });
-    }, 120);
+    }, intervalMs);
 }
 
 function stopVisualizer() {
