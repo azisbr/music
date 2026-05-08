@@ -124,6 +124,41 @@
             </button>
             <h1 style="font-size:24px;font-weight:800;">Pengaturan</h1>
         </div>
+        <!-- ── AKUN / LOGIN SECTION ── -->
+        <div class="settings-section" style="padding:0 16px 4px;">
+            <div class="settings-section-title">Akun</div>
+
+            <!-- Logged Out -->
+            <div id="authLoggedOut">
+                <div style="background:#1a1a1a;border-radius:12px;padding:20px;text-align:center;margin-bottom:16px;">
+                    <div style="font-size:36px;margin-bottom:10px;">☁️</div>
+                    <div style="font-size:15px;font-weight:700;margin-bottom:6px;">Sinkronisasi Cloud</div>
+                    <div style="font-size:13px;color:var(--text-sub);margin-bottom:18px;line-height:1.5;">Login untuk menyinkron playlist &amp; lagu favorit di semua perangkat.</div>
+                    <button onclick="window.firebaseSync.openAuthModal('login')" style="width:100%;padding:14px;background:var(--spotify-green);color:black;border:none;border-radius:24px;font-size:15px;font-weight:700;cursor:pointer;">
+                        Masuk / Daftar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Logged In -->
+            <div id="authLoggedIn" style="display:none;">
+                <div style="background:#1a1a1a;border-radius:12px;padding:16px;margin-bottom:16px;">
+                    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+                        <div class="auth-avatar-circle"><span id="authAvatarInitial">U</span></div>
+                        <div style="flex:1;overflow:hidden;">
+                            <div id="authUserName" style="font-size:16px;font-weight:700;"></div>
+                            <div id="authUserEmail" style="font-size:12px;color:var(--text-sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+                        </div>
+                        <span id="syncStatusBadge" style="font-size:11px;font-weight:600;color:var(--spotify-green);">☁️</span>
+                    </div>
+                    <div style="display:flex;gap:10px;">
+                        <button onclick="syncAllNow()" style="flex:1;padding:10px;background:#282828;color:white;border:1px solid #444;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">🔄 Sinkron</button>
+                        <button onclick="window.firebaseSync.doLogout()" style="flex:1;padding:10px;background:transparent;color:#ff5252;border:1px solid #ff5252;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Logout</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="settings-section" style="padding:0 16px;">
             <div class="settings-section-title">Tampilan</div>
             <div style="margin-bottom:20px;">
@@ -152,44 +187,9 @@
         </div>
         <div style="padding:0 16px 24px;">
 
-            <!-- ── LOGGED OUT STATE ── -->
-            <div id="authLoggedOut">
-                <div class="dev-card" style="text-align:center;">
-                    <div style="font-size:40px;margin-bottom:12px;">☁️</div>
-                    <div style="font-size:16px;font-weight:700;margin-bottom:6px;">Sinkronisasi Cloud</div>
-                    <div style="font-size:13px;color:var(--text-sub);margin-bottom:20px;">Login untuk menyinkron playlist, lagu favorit, dan riwayat di semua perangkat.</div>
-                    <button class="dev-cta-btn" style="margin-bottom:0;" onclick="window.firebaseSync.openAuthModal('login')">
-                        <svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:black;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"></path></svg>
-                        Masuk / Daftar
-                    </button>
-                </div>
-            </div>
-
-            <!-- ── LOGGED IN STATE ── -->
-            <div id="authLoggedIn" style="display:none;">
-                <div class="dev-card">
-                    <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
-                        <div class="auth-avatar-circle">
-                            <span id="authAvatarInitial">U</span>
-                        </div>
-                        <div style="flex:1;overflow:hidden;">
-                            <div id="authUserName" style="font-size:16px;font-weight:700;margin-bottom:2px;"></div>
-                            <div id="authUserEmail" style="font-size:12px;color:var(--text-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
-                        </div>
-                    </div>
-                    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #333;">
-                        <span style="font-size:13px;color:var(--text-sub);">Status sinkronisasi</span>
-                        <span id="syncStatusBadge" style="font-size:12px;font-weight:600;color:var(--spotify-green);">☁️ Tersinkron</span>
-                    </div>
-                    <button onclick="syncAllNow()" class="dev-cta-btn" style="margin-top:14px;margin-bottom:10px;background:#1a1a1a;color:white;border:1px solid #444;">
-                        <svg viewBox="0 0 24 24" style="width:17px;height:17px;fill:white;"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"></path></svg>
-                        Sinkron Sekarang
-                    </button>
-                    <button onclick="window.firebaseSync.doLogout()" style="width:100%;padding:12px;background:transparent;color:#ff5252;border:1px solid #ff5252;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
-                        <svg viewBox="0 0 24 24" style="width:17px;height:17px;fill:#ff5252;"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"></path></svg>
-                        Logout
-                    </button>
-                </div>
+            <!-- Auth ada di Settings -->
+            <div class="dev-card" style="text-align:center;cursor:pointer;" onclick="switchView('settings')">
+                <div style="font-size:13px;color:var(--text-sub);">Login / Akun ada di tab <span style="color:var(--spotify-green);font-weight:700;">⚙️ Pengaturan</span></div>
             </div>
 
             <div class="dev-card" style="margin-top:16px;">
