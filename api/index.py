@@ -92,14 +92,29 @@ async def get_embeddable_tracks(query: str, need: int = 12) -> list:
 @app.get("/api/search")
 async def search_music(query: str):
     try:
-        results = await get_embeddable_tracks(query, need=15)
-        if not results:
-            results = search_ytmusic(query, limit=15)
-        if not results:
+        # Ambil banyak dulu dari ytmusicapi
+        raw = search_ytmusic(query, limit=40)
+        if not raw:
             return {"status": "error", "message": "Tidak ada hasil"}
-        return {"status": "success", "data": results}
+
+        # Batch check embeddable
+        video_ids = [t['videoId'] for t in raw]
+        embed_status = await check_embeddable_batch(video_ids)
+
+        # Filter yang embeddable
+        filtered = [t for t in raw if embed_status.get(t['videoId'], True)]
+
+        # Kalau hasil filter terlalu sedikit (<8), kembalikan semua aja
+        # daripada kosong
+        final = filtered if len(filtered) >= 8 else raw
+        return {"status": "success", "data": final[:25]}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        # Fallback total — return tanpa filter
+        try:
+            raw = search_ytmusic(query, limit=25)
+            return {"status": "success", "data": raw}
+        except:
+            return {"status": "error", "message": str(e)}
 
 @app.get("/api/home")
 async def get_home_data():
