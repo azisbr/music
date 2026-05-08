@@ -45,7 +45,8 @@ let nowPlayingVideoId = null;
 // --- 3. YOUTUBE API ---
 function onYouTubeIframeAPIReady() {
     ytPlayer = new YT.Player('youtube-player', {
-        height: '0', width: '0',
+        height: '1', width: '1',
+        playerVars: { 'playsinline': 1, 'controls': 0, 'disablekb': 1 },
         events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange }
     });
 }
