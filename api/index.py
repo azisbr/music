@@ -16,104 +16,90 @@ YT_VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
 home_cache = {}
 CACHE_TTL = 1800
 
-BLOCKED_CHANNELS = {
-    "vevo", "official", "records", "music official",
-    "warner", "sony", "universal", "umg", "sme", "wme"
-}
-
-def is_likely_embeddable(title: str, channel: str) -> bool:
-    """Filter video yang kemungkinan besar BISA di-embed"""
-    combined = (title + " " + channel).lower()
-    # Prioritaskan audio/lyric/cover yang biasanya bisa embed
-    good_keywords = ["audio", "lyrics", "lyric", "cover", "unofficial", "slowed", "reverb", "remix", "karaoke"]
-    for kw in good_keywords:
-        if kw in combined:
-            return True
-    # Block channel VEVO / label besar
-    for blocked in BLOCKED_CHANNELS:
-        if blocked in combined:
-            return False
-    return True
-
-async def yt_search_embeddable(query: str, max_results: int = 20) -> list:
-    """
-    Search YouTube Data API v3, filter hanya yang embeddable,
-    cek status embed via videos endpoint
-    """
-    search_params = {
-        "part": "snippet",
-        "q": query + " audio",
-        "type": "video",
-        "videoCategoryId": "10",
-        "maxResults": max_results,
-        "regionCode": "ID",
-        "key": YT_API_KEY,
-        "videoEmbeddable": "true",  # ← filter langsung dari API!
-    }
-    async with httpx.AsyncClient(timeout=10) as client:
-        res = await client.get(YT_SEARCH_URL, params=search_params)
-        data = res.json()
-
-    results = []
-    for item in data.get("items", []):
-        vid_id = item.get("id", {}).get("videoId")
-        if not vid_id:
+# ── ytmusicapi search (selalu jadi primary) ──────────────────
+def fmt_ytmusic(results):
+    cleaned = []
+    for item in results:
+        vid = item.get('videoId')
+        if not vid:
             continue
-        snippet = item.get("snippet", {})
-        thumb = snippet.get("thumbnails", {})
-        img = (thumb.get("high") or thumb.get("medium") or thumb.get("default") or {}).get("url", "")
-        title = snippet.get("title", "Unknown")
-        channel = snippet.get("channelTitle", "Unknown")
-        results.append({
-            "videoId": vid_id,
-            "title": title,
-            "artist": channel,
+        thumbs = item.get('thumbnails', [])
+        img = thumbs[-1]['url'] if thumbs else ''
+        artist = 'Unknown Artist'
+        if 'artists' in item and item['artists']:
+            artist = item['artists'][0].get('name', 'Unknown Artist')
+        elif 'author' in item:
+            artist = item['author']
+        cleaned.append({
+            "videoId": vid,
+            "title": item.get('title', 'Unknown Title'),
+            "artist": artist,
             "thumbnail": img
         })
+    return cleaned
 
-    return results[:12]
+def search_ytmusic(query: str, limit: int = 15):
+    """Primary search — pakai ytmusicapi, hasilnya pasti bisa diplay"""
+    try:
+        results = ytmusic.search(query, filter="songs", limit=limit)
+        data = fmt_ytmusic(results)
+        if data:
+            return data
+    except Exception as e:
+        print(f"ytmusicapi songs error: {e}")
+    # Fallback tanpa filter
+    try:
+        results = ytmusic.search(query, limit=limit)
+        return fmt_ytmusic(results)
+    except Exception as e:
+        print(f"ytmusicapi fallback error: {e}")
+        return []
 
-async def yt_trending_embeddable(max_results: int = 12) -> list:
-    """Trending musik Indonesia, filter embeddable"""
-    params = {
-        "part": "snippet,status",
-        "chart": "mostPopular",
-        "videoCategoryId": "10",
-        "regionCode": "ID",
-        "maxResults": 20,
-        "key": YT_API_KEY,
-    }
-    async with httpx.AsyncClient(timeout=10) as client:
-        res = await client.get(YT_VIDEOS_URL, params=params)
-        data = res.json()
+# ── YouTube Data API (secondary, buat trending aja) ──────────
+async def yt_trending(max_results: int = 12):
+    try:
+        params = {
+            "part": "snippet,status",
+            "chart": "mostPopular",
+            "videoCategoryId": "10",
+            "regionCode": "ID",
+            "maxResults": 20,
+            "key": YT_API_KEY,
+        }
+        async with httpx.AsyncClient(timeout=8) as client:
+            res = await client.get(YT_VIDEOS_URL, params=params)
+            data = res.json()
 
-    results = []
-    for item in data.get("items", []):
-        vid_id = item.get("id")
-        if not vid_id:
-            continue
-        status = item.get("status", {})
-        # Cek embeddable langsung dari status
-        if not status.get("embeddable", True):
-            continue
-        snippet = item.get("snippet", {})
-        thumb = snippet.get("thumbnails", {})
-        img = (thumb.get("maxres") or thumb.get("high") or thumb.get("medium") or thumb.get("default") or {}).get("url", "")
-        results.append({
-            "videoId": vid_id,
-            "title": snippet.get("title", "Unknown"),
-            "artist": snippet.get("channelTitle", "Unknown"),
-            "thumbnail": img
-        })
-        if len(results) >= max_results:
-            break
+        results = []
+        for item in data.get("items", []):
+            vid_id = item.get("id")
+            if not vid_id:
+                continue
+            status = item.get("status", {})
+            if not status.get("embeddable", True):
+                continue
+            snippet = item.get("snippet", {})
+            thumb = snippet.get("thumbnails", {})
+            img = (thumb.get("maxres") or thumb.get("high") or thumb.get("medium") or thumb.get("default") or {}).get("url", "")
+            results.append({
+                "videoId": vid_id,
+                "title": snippet.get("title", "Unknown"),
+                "artist": snippet.get("channelTitle", "Unknown"),
+                "thumbnail": img
+            })
+            if len(results) >= max_results:
+                break
+        return results
+    except Exception as e:
+        print(f"yt_trending error: {e}")
+        # Fallback trending via ytmusicapi
+        return search_ytmusic("lagu indonesia trending terpopuler", 12)
 
-    return results
-
+# ── Endpoints ────────────────────────────────────────────────
 @app.get("/api/search")
 async def search_music(query: str):
     try:
-        results = await yt_search_embeddable(query, max_results=20)
+        results = search_ytmusic(query, limit=15)
         if not results:
             return {"status": "error", "message": "Tidak ada hasil"}
         return {"status": "success", "data": results}
@@ -127,12 +113,14 @@ async def get_home_data():
         return {"status": "success", "data": home_cache["data"]}
     try:
         import asyncio
-        trending, anyar, gembira, galau, tiktok = await asyncio.gather(
-            yt_trending_embeddable(12),
-            yt_search_embeddable("lagu indonesia terbaru 2025 2026", 10),
-            yt_search_embeddable("lagu pop semangat ceria 2025", 10),
-            yt_search_embeddable("lagu galau sedih indonesia 2025", 10),
-            yt_search_embeddable("lagu viral tiktok indonesia 2025 2026", 10),
+        trending_task = yt_trending(12)
+        trending = await trending_task
+
+        anyar, gembira, galau, tiktok = await asyncio.gather(
+            asyncio.to_thread(search_ytmusic, "lagu indonesia terbaru 2025 2026", 10),
+            asyncio.to_thread(search_ytmusic, "lagu pop semangat ceria 2025", 10),
+            asyncio.to_thread(search_ytmusic, "lagu galau sedih indonesia 2025", 10),
+            asyncio.to_thread(search_ytmusic, "lagu viral tiktok indonesia 2025 2026", 10),
         )
         data = {
             "trending": trending,
@@ -158,3 +146,26 @@ def get_lyrics(video_id: str):
         return {"status": "success", "data": lyrics}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+@app.get("/api/debug")
+async def debug():
+    """Endpoint debug — cek status API"""
+    result = {"ytmusicapi": "error", "yt_data_api": "error", "search_result": []}
+    try:
+        r = search_ytmusic("pop", 3)
+        result["ytmusicapi"] = "ok" if r else "empty"
+        result["search_result"] = r[:2]
+    except Exception as e:
+        result["ytmusicapi"] = str(e)
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            res = await client.get(YT_VIDEOS_URL, params={
+                "part": "snippet", "chart": "mostPopular",
+                "videoCategoryId": "10", "regionCode": "ID",
+                "maxResults": 1, "key": YT_API_KEY
+            })
+            data = res.json()
+            result["yt_data_api"] = "ok" if "items" in data else data.get("error", {}).get("message", "unknown error")
+    except Exception as e:
+        result["yt_data_api"] = str(e)
+    return result
