@@ -132,20 +132,26 @@ body {
     bottom: -100px;
     left: 50%;
     transform: translateX(-50%);
-    background-color: var(--spotify-green);
-    color: #000;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 700;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    color: #fff;
+    padding: 10px 22px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.15);
     z-index: 3000;
-    transition: bottom 0.3s cubic-bezier(0.1, 0.9, 0.2, 1);
+    transition: bottom 0.35s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 0.35s ease;
     white-space: nowrap;
     text-align: center;
+    opacity: 0;
+    letter-spacing: 0.1px;
 }
 .toast-notification.show {
     bottom: 90px;
+    opacity: 1;
 }
 
 /* DEVELOPER VIEW */
@@ -164,3 +170,482 @@ body {
 .dev-cta-btn:active { transform: scale(0.98); }
 .install-pwa-btn { background: var(--spotify-green); color: black; display: none; margin-bottom: 16px; } 
 .dev-footer-text { text-align: center; font-size: 12px; color: #535353; margin: 30px 0 80px; line-height: 1.5; }
+
+/* ===== FITUR BARU ===== */
+
+/* Skeleton Loading */
+.skeleton {
+    background: linear-gradient(90deg, #282828 25%, #333 50%, #282828 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s infinite;
+}
+@keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Equalizer Bars (Now Playing) */
+.equalizer-bars {
+    position: absolute; inset: 0; display: flex;
+    align-items: flex-end; justify-content: center;
+    gap: 2px; padding: 6px 8px;
+    background: rgba(0,0,0,0.55); border-radius: 4px;
+}
+.equalizer-bars span {
+    display: inline-block; width: 3px;
+    background: var(--spotify-green); border-radius: 2px;
+    animation: eq-bar 0.8s ease-in-out infinite alternate;
+}
+.equalizer-bars span:nth-child(1) { height: 60%; animation-delay: 0s; }
+.equalizer-bars span:nth-child(2) { height: 90%; animation-delay: 0.2s; }
+.equalizer-bars span:nth-child(3) { height: 50%; animation-delay: 0.4s; }
+@keyframes eq-bar {
+    from { transform: scaleY(0.4); }
+    to   { transform: scaleY(1); }
+}
+
+/* Now Playing row highlight */
+.v-item.now-playing .v-title { color: var(--spotify-green); }
+
+/* Search History Item */
+.search-history-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+    cursor: pointer;
+}
+.search-history-item:last-child { border-bottom: none; }
+.search-history-item:hover { opacity: 0.8; }
+
+/* Track Context Menu Item */
+.track-menu-item {
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 0; font-size: 15px; color: white;
+    cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.track-menu-item:last-child { border-bottom: none; }
+.track-menu-item:active { opacity: 0.7; }
+
+/* Sleep Timer Button */
+.sleep-btn {
+    background: #3e3e3e; color: white; border: none;
+    border-radius: 8px; padding: 14px 8px; font-size: 14px;
+    font-weight: 600; cursor: pointer; transition: background 0.2s;
+}
+.sleep-btn:hover { background: #535353; }
+.sleep-btn:active { transform: scale(0.97); }
+
+/* Queue Active item */
+.queue-active { background: rgba(30,215,96,0.05); border-radius: 8px; }
+
+/* ===== LYRICS ===== */
+.lyrics-content-wrapper { position: relative; z-index: 2; display: flex; flex-direction: column; height: 100%; }
+.modal-body { flex: 1; overflow-y: auto; padding: 0 24px 80px; font-size: 26px; font-weight: 800; line-height: 1.6; color: white; white-space: pre-wrap; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+.modal-body::-webkit-scrollbar { display: none; }
+.lyrics-track-info { display: flex; align-items: center; gap: 16px; padding: 0 20px 20px; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.lyrics-track-info img { width: 56px; height: 56px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); object-fit: cover; }
+.lyrics-track-info-text { flex: 1; overflow: hidden; }
+.lyrics-track-title { font-size: 18px; font-weight: 700; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lyrics-track-artist { font-size: 14px; color: rgba(255,255,255,0.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lyric-actions { display: flex; align-items: center; gap: 16px; }
+.lyric-btn { fill: white; width: 26px; height: 26px; cursor: pointer; }
+.lyric-btn.liked { fill: var(--spotify-green); }
+
+/* ===== AUTH MODAL ===== */
+.auth-modal-box {
+    background: #1a1a1a;
+    border-radius: 16px;
+    padding: 28px 24px;
+    width: 90%;
+    max-width: 380px;
+    z-index: 10;
+    position: relative;
+    animation: slideUp 0.25s ease;
+}
+@keyframes slideUp { from { opacity:0; transform: translateY(30px); } to { opacity:1; transform: translateY(0); } }
+
+.auth-tab {
+    flex: 1;
+    padding: 12px;
+    background: transparent;
+    color: var(--text-sub);
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.auth-tab.active {
+    background: var(--spotify-green);
+    color: black;
+    border-radius: 6px;
+    margin: 3px;
+}
+
+.auth-input {
+    width: 100%;
+    padding: 14px 16px;
+    background: #2a2a2a;
+    border: 1.5px solid #3a3a3a;
+    border-radius: 8px;
+    color: white;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.auth-input:focus { border-color: var(--spotify-green); }
+.auth-input::placeholder { color: #666; }
+
+.auth-submit-btn {
+    width: 100%;
+    padding: 15px;
+    background: var(--spotify-green);
+    color: black;
+    border: none;
+    border-radius: 50px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.1s, opacity 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.auth-submit-btn:active { transform: scale(0.97); }
+.auth-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.auth-avatar-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1db954, #1565c0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 800;
+    color: white;
+    flex-shrink: 0;
+}
+
+/* ============================================================
+   TEMA CUSTOM - Dark / Light / AMOLED / Gradient
+   ============================================================ */
+
+/* LIGHT THEME */
+body.theme-light {
+    --bg-base: #f8f8f8;
+    --bg-highlight: #ffffff;
+    --text-main: #121212;
+    --text-sub: #6a6a6a;
+    --nav-bg: rgba(248,248,248,0.92);
+    --spotify-green: #1db954;
+}
+body.theme-light .bottom-nav { background: linear-gradient(transparent, rgba(248,248,248,0.95) 20%, #f8f8f8); }
+body.theme-light .mini-player { background: #ffffff; box-shadow: 0 4px 20px rgba(0,0,0,0.12); }
+body.theme-light .mini-player-title { color: #121212; }
+body.theme-light .mini-player-controls svg { fill: #121212; }
+body.theme-light .dev-card { background: #ffffff; border-color: rgba(0,0,0,0.08); }
+body.theme-light .pill { background: #e8e8e8; color: #121212; }
+body.theme-light .search-box { background: #ececec; color: #121212; }
+body.theme-light .search-icon-input { fill: #6a6a6a; }
+body.theme-light .home-header { background: #f8f8f8; }
+body.theme-light .lib-header { background: #f8f8f8; }
+
+/* AMOLED THEME */
+body.theme-amoled {
+    --bg-base: #000000;
+    --bg-highlight: #0a0a0a;
+    --text-main: #ffffff;
+    --text-sub: #888888;
+    --nav-bg: rgba(0,0,0,0.98);
+}
+body.theme-amoled .bottom-nav { background: #000; }
+body.theme-amoled .mini-player { background: #0d0d0d; border: 1px solid #1a1a1a; }
+body.theme-amoled .dev-card { background: #0d0d0d; }
+body.theme-amoled .home-header { background: #000; }
+body.theme-amoled .lib-header { background: #000; }
+
+/* GRADIENT THEME */
+body.theme-gradient {
+    --bg-base: #0f0c29;
+    --bg-highlight: #1a1640;
+    --text-main: #ffffff;
+    --text-sub: #b0aed0;
+    --spotify-green: #a78bfa;
+    --nav-bg: rgba(15,12,41,0.95);
+}
+body.theme-gradient { background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%) fixed; }
+body.theme-gradient .bottom-nav { background: linear-gradient(transparent, rgba(15,12,41,0.97) 20%, #0f0c29); }
+body.theme-gradient .pill.active { background: #a78bfa; color: white; }
+body.theme-gradient .mini-player { background: rgba(48,43,99,0.9); border: 1px solid rgba(167,139,250,0.2); }
+body.theme-gradient .home-header { background: transparent; }
+body.theme-gradient .lib-header { background: transparent; }
+body.theme-gradient .dev-card { background: rgba(26,22,64,0.8); border-color: rgba(167,139,250,0.15); }
+
+/* ── Theme Switcher Panel ── */
+.theme-panel {
+    display: flex; gap: 12px; flex-wrap: wrap; padding: 4px 0 8px;
+}
+.theme-swatch {
+    width: 48px; height: 48px; border-radius: 50%; cursor: pointer;
+    border: 3px solid transparent; transition: border 0.2s, transform 0.2s;
+    position: relative; overflow: hidden;
+}
+.theme-swatch.active { border-color: var(--spotify-green); transform: scale(1.1); }
+.theme-swatch::after {
+    content: ''; position: absolute; inset: 0; border-radius: 50%;
+    background: inherit;
+}
+.swatch-dark     { background: #121212; }
+.swatch-light    { background: linear-gradient(135deg, #f8f8f8, #e0e0e0); }
+.swatch-amoled   { background: #000; border: 1px solid #333; }
+.swatch-gradient { background: linear-gradient(135deg, #0f0c29, #a78bfa); }
+
+/* ============================================================
+   LIQUID GLASS EFFECT
+   ============================================================ */
+.glass {
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px;
+}
+.glass-strong {
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(40px) saturate(200%);
+    -webkit-backdrop-filter: blur(40px) saturate(200%);
+    border: 1px solid rgba(255,255,255,0.18);
+}
+
+/* Mini player → liquid glass */
+.mini-player {
+    background: rgba(30,30,30,0.65) !important;
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px !important;
+}
+body.theme-light .mini-player {
+    background: rgba(255,255,255,0.72) !important;
+    border-color: rgba(0,0,0,0.08);
+}
+
+/* Bottom nav → glass */
+.bottom-nav {
+    background: rgba(0,0,0,0.55) !important;
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border-top: 1px solid rgba(255,255,255,0.06);
+}
+body.theme-light .bottom-nav {
+    background: rgba(248,248,248,0.75) !important;
+    border-top-color: rgba(0,0,0,0.06);
+}
+
+/* Modal overlays → glass */
+#trackMenuModal > div,
+#queueModal > div,
+#sleepTimerModal > div,
+#playlistOptionsModal > div,
+#addToPlaylistModal > div {
+    background: rgba(24,24,24,0.82) !important;
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Auth modal → glass */
+.auth-modal-box {
+    background: rgba(20,20,20,0.85) !important;
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.1) !important;
+}
+body.theme-light .auth-modal-box {
+    background: rgba(255,255,255,0.88) !important;
+    border-color: rgba(0,0,0,0.08) !important;
+}
+body.theme-light .auth-modal-box h2,
+body.theme-light .auth-modal-box p,
+body.theme-light .auth-modal-box label { color: #121212; }
+body.theme-light .auth-input { background: rgba(0,0,0,0.06); border-color: rgba(0,0,0,0.12); color: #121212; }
+
+/* ============================================================
+   VINYL PLAYER - Now Playing album art animation
+   ============================================================ */
+.vinyl-wrapper {
+    position: relative;
+    width: 260px; height: 260px;
+    margin: 0 auto;
+    flex-shrink: 0;
+}
+.vinyl-disc {
+    width: 260px; height: 260px;
+    border-radius: 50%;
+    position: absolute;
+    background: radial-gradient(circle at 50% 50%,
+        #1a1a1a 0%, #1a1a1a 18%,
+        transparent 18.5%, transparent 19%,
+        #111 19%, #222 22%,
+        #111 24%, #222 28%,
+        #111 30%, #1a1a1a 100%);
+    box-shadow: 0 0 0 2px #333, 0 8px 40px rgba(0,0,0,0.8);
+    animation: vinyl-spin 4s linear infinite;
+    animation-play-state: paused;
+    transform-origin: center;
+}
+.vinyl-disc.playing { animation-play-state: running; }
+@keyframes vinyl-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.vinyl-cover {
+    position: absolute;
+    width: 110px; height: 110px;
+    border-radius: 50%;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    object-fit: cover;
+    z-index: 2;
+    border: 3px solid #000;
+    box-shadow: 0 0 0 8px rgba(0,0,0,0.5);
+}
+.vinyl-hole {
+    position: absolute;
+    width: 14px; height: 14px;
+    background: #000;
+    border-radius: 50%;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 3;
+    border: 2px solid #333;
+}
+.vinyl-needle {
+    position: absolute;
+    top: -10px; right: -20px;
+    width: 50px; height: 90px;
+    transform-origin: top center;
+    transition: transform 0.5s ease;
+    z-index: 5;
+}
+.vinyl-needle.on  { transform: rotate(28deg); }
+.vinyl-needle.off { transform: rotate(5deg); }
+
+/* ============================================================
+   AUDIO VISUALIZER BARS
+   ============================================================ */
+.visualizer-container {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 3px;
+    height: 40px;
+    padding: 0 24px;
+    margin-bottom: 12px;
+}
+.viz-bar {
+    width: 4px;
+    border-radius: 2px;
+    background: var(--spotify-green);
+    opacity: 0.7;
+    transition: height 0.1s ease;
+    animation: viz-idle 1.2s ease-in-out infinite alternate;
+}
+.viz-bar:nth-child(odd)  { animation-delay: 0s; }
+.viz-bar:nth-child(even) { animation-delay: 0.15s; }
+.visualizer-container.playing .viz-bar { opacity: 1; }
+@keyframes viz-idle {
+    from { height: 4px; }
+    to   { height: 12px; }
+}
+
+/* ============================================================
+   PARTICLES CANVAS (background of player)
+   ============================================================ */
+#particlesCanvas {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.35;
+}
+
+/* ============================================================
+   NOW PLAYING - Updated player layout with vinyl
+   ============================================================ */
+.player-art-container {
+    padding: 0 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex: 1;
+    margin-bottom: 12px;
+}
+
+/* ============================================================
+   TEMA SWITCHER dalam settings panel
+   ============================================================ */
+#view-settings {
+    padding: 40px 16px 100px;
+}
+.settings-section {
+    margin-bottom: 28px;
+}
+.settings-section-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-sub);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+}
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-size: 15px;
+}
+body.theme-light .settings-row { border-color: rgba(0,0,0,0.06); }
+
+/* Toggle switch */
+.toggle-switch {
+    position: relative; width: 44px; height: 26px;
+}
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+    position: absolute; cursor: pointer; inset: 0;
+    background: #555; border-radius: 26px; transition: 0.3s;
+}
+.toggle-slider:before {
+    content: ''; position: absolute;
+    width: 20px; height: 20px; left: 3px; bottom: 3px;
+    background: white; border-radius: 50%; transition: 0.3s;
+}
+input:checked + .toggle-slider { background: var(--spotify-green); }
+input:checked + .toggle-slider:before { transform: translateX(18px); }
+
+/* ============================================================
+   TRANSITION ANIMATIONS (global smooth page changes)
+   ============================================================ */
+.view-section { animation: viewFadeIn 0.25s ease; }
+@keyframes viewFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Player expand animation */
+#playerModal { animation: playerSlideUp 0.38s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes playerSlideUp {
+    from { transform: translateY(100%); opacity: 0.8; }
+    to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* Card hover effect */
+.h-card { transition: transform 0.18s ease; }
+.h-card:active { transform: scale(0.95); }
+.v-item { transition: background 0.15s ease; border-radius: 8px; padding: 6px 8px; }
+.v-item:active { background: rgba(255,255,255,0.06); }
+body.theme-light .v-item:active { background: rgba(0,0,0,0.04); }
+
