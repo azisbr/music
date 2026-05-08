@@ -10,84 +10,113 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 ytmusic = YTMusic()
 
 YT_API_KEY = "AIzaSyDiAOWqmXkbbjDoP3e-dUjD293MfjTsurs"
+YT_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 YT_VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
 
 home_cache = {}
 CACHE_TTL = 1800
 
-def fmt_ytmusic(results):
-    """Format ytmusicapi results — videoId-nya pasti bisa diplay"""
-    cleaned = []
-    for item in results:
-        vid = item.get('videoId')
-        if not vid:
+BLOCKED_CHANNELS = {
+    "vevo", "official", "records", "music official",
+    "warner", "sony", "universal", "umg", "sme", "wme"
+}
+
+def is_likely_embeddable(title: str, channel: str) -> bool:
+    """Filter video yang kemungkinan besar BISA di-embed"""
+    combined = (title + " " + channel).lower()
+    # Prioritaskan audio/lyric/cover yang biasanya bisa embed
+    good_keywords = ["audio", "lyrics", "lyric", "cover", "unofficial", "slowed", "reverb", "remix", "karaoke"]
+    for kw in good_keywords:
+        if kw in combined:
+            return True
+    # Block channel VEVO / label besar
+    for blocked in BLOCKED_CHANNELS:
+        if blocked in combined:
+            return False
+    return True
+
+async def yt_search_embeddable(query: str, max_results: int = 20) -> list:
+    """
+    Search YouTube Data API v3, filter hanya yang embeddable,
+    cek status embed via videos endpoint
+    """
+    search_params = {
+        "part": "snippet",
+        "q": query + " audio",
+        "type": "video",
+        "videoCategoryId": "10",
+        "maxResults": max_results,
+        "regionCode": "ID",
+        "key": YT_API_KEY,
+        "videoEmbeddable": "true",  # ← filter langsung dari API!
+    }
+    async with httpx.AsyncClient(timeout=10) as client:
+        res = await client.get(YT_SEARCH_URL, params=search_params)
+        data = res.json()
+
+    results = []
+    for item in data.get("items", []):
+        vid_id = item.get("id", {}).get("videoId")
+        if not vid_id:
             continue
-        thumbs = item.get('thumbnails', [])
-        img = thumbs[-1]['url'] if thumbs else ''
-        artist = 'Unknown Artist'
-        if 'artists' in item and item['artists']:
-            artist = item['artists'][0].get('name', 'Unknown Artist')
-        elif 'author' in item:
-            artist = item['author']
-        cleaned.append({
-            "videoId": vid,
-            "title": item.get('title', 'Unknown Title'),
-            "artist": artist,
+        snippet = item.get("snippet", {})
+        thumb = snippet.get("thumbnails", {})
+        img = (thumb.get("high") or thumb.get("medium") or thumb.get("default") or {}).get("url", "")
+        title = snippet.get("title", "Unknown")
+        channel = snippet.get("channelTitle", "Unknown")
+        results.append({
+            "videoId": vid_id,
+            "title": title,
+            "artist": channel,
             "thumbnail": img
         })
-    return cleaned
 
-async def get_trending_ids():
-    """Ambil videoId trending dari YT Data API, lalu cari di ytmusicapi biar bisa diplay"""
-    try:
-        params = {
-            "part": "snippet",
-            "chart": "mostPopular",
-            "videoCategoryId": "10",
-            "regionCode": "ID",
-            "maxResults": 12,
-            "key": YT_API_KEY,
-        }
-        async with httpx.AsyncClient(timeout=8) as client:
-            res = await client.get(YT_VIDEOS_URL, params=params)
-            data = res.json()
-        results = []
-        for item in data.get("items", []):
-            vid_id = item.get("id")
-            if not vid_id:
-                continue
-            snippet = item.get("snippet", {})
-            thumb = snippet.get("thumbnails", {})
-            img = (thumb.get("maxres") or thumb.get("high") or thumb.get("medium") or thumb.get("default") or {}).get("url", "")
-            results.append({
-                "videoId": vid_id,
-                "title": snippet.get("title", "Unknown"),
-                "artist": snippet.get("channelTitle", "Unknown"),
-                "thumbnail": img
-            })
-        return results
-    except:
-        return []
+    return results[:12]
 
-def search_ytmusic(query, limit=12):
-    """Search via ytmusicapi — hasilnya pasti bisa diplay karena dari YouTube Music"""
-    try:
-        results = ytmusic.search(query, filter="songs", limit=limit)
-        return fmt_ytmusic(results)
-    except:
-        try:
-            results = ytmusic.search(query, limit=limit)
-            return fmt_ytmusic(results)
-        except:
-            return []
+async def yt_trending_embeddable(max_results: int = 12) -> list:
+    """Trending musik Indonesia, filter embeddable"""
+    params = {
+        "part": "snippet,status",
+        "chart": "mostPopular",
+        "videoCategoryId": "10",
+        "regionCode": "ID",
+        "maxResults": 20,
+        "key": YT_API_KEY,
+    }
+    async with httpx.AsyncClient(timeout=10) as client:
+        res = await client.get(YT_VIDEOS_URL, params=params)
+        data = res.json()
+
+    results = []
+    for item in data.get("items", []):
+        vid_id = item.get("id")
+        if not vid_id:
+            continue
+        status = item.get("status", {})
+        # Cek embeddable langsung dari status
+        if not status.get("embeddable", True):
+            continue
+        snippet = item.get("snippet", {})
+        thumb = snippet.get("thumbnails", {})
+        img = (thumb.get("maxres") or thumb.get("high") or thumb.get("medium") or thumb.get("default") or {}).get("url", "")
+        results.append({
+            "videoId": vid_id,
+            "title": snippet.get("title", "Unknown"),
+            "artist": snippet.get("channelTitle", "Unknown"),
+            "thumbnail": img
+        })
+        if len(results) >= max_results:
+            break
+
+    return results
 
 @app.get("/api/search")
 async def search_music(query: str):
     try:
-        data = search_ytmusic(query, limit=15)
-        if not data:
+        results = await yt_search_embeddable(query, max_results=20)
+        if not results:
             return {"status": "error", "message": "Tidak ada hasil"}
-        return {"status": "success", "data": data}
+        return {"status": "success", "data": results}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -97,13 +126,20 @@ async def get_home_data():
     if "data" in home_cache and (current_time - home_cache.get("timestamp", 0) < CACHE_TTL):
         return {"status": "success", "data": home_cache["data"]}
     try:
-        trending = await get_trending_ids()
+        import asyncio
+        trending, anyar, gembira, galau, tiktok = await asyncio.gather(
+            yt_trending_embeddable(12),
+            yt_search_embeddable("lagu indonesia terbaru 2025 2026", 10),
+            yt_search_embeddable("lagu pop semangat ceria 2025", 10),
+            yt_search_embeddable("lagu galau sedih indonesia 2025", 10),
+            yt_search_embeddable("lagu viral tiktok indonesia 2025 2026", 10),
+        )
         data = {
             "trending": trending,
-            "anyar": search_ytmusic("lagu indonesia terbaru 2025 2026", 10),
-            "gembira": search_ytmusic("lagu pop semangat ceria 2025 hits", 10),
-            "galau": search_ytmusic("lagu galau sedih indonesia 2025", 10),
-            "tiktok": search_ytmusic("lagu viral tiktok indonesia 2025 2026", 10),
+            "anyar": anyar,
+            "gembira": gembira,
+            "galau": galau,
+            "tiktok": tiktok,
         }
         home_cache["data"] = data
         home_cache["timestamp"] = current_time
